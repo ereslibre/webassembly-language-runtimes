@@ -4,5 +4,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -y \
       bison \
       re2c \
       libsqlite3-dev \
+      libmysqlclient-dev \
       tcl
 ADD . /wlr/php

@@ -12,8 +12,8 @@ export CFLAGS_CONFIG="-O2"
 export CFLAGS_WASI="--sysroot=${WASI_SYSROOT} -D_WASI_EMULATED_GETPID -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS"
 export LDFLAGS_WASI="--sysroot=${WASI_SYSROOT} -lwasi-emulated-getpid -lwasi-emulated-signal -lwasi-emulated-process-clocks"
 
-export CFLAGS_SQLITE='-DSQLITE_OMIT_LOAD_EXTENSION=1'
-export LDFLAGS_SQLITE='-lsqlite3'
+export CFLAGS_SQLITE=''
+export LDFLAGS_SQLITE=''
 
 export CFLAGS_PHP='-D_POSIX_SOURCE=1 -D_GNU_SOURCE=1 -DHAVE_FORK=0 -DWASM_WASI -DWASM_WASMEDGE'
 
@@ -23,12 +23,12 @@ export CFLAGS="${CFS} ${CFLAGS_CONFIG} ${CFLAGS_WASI} ${CFLAGS_SQLITE} ${CFLAGS_
 
 cd "${WASMLABS_CHECKOUT_PATH}"
 
-logStatus "Generating configure script... "
-./buildconf --force || exit 1
+#logStatus "Generating configure script... "
+./buildconf || exit 1
 
-export PHP_CONFIGURE='--with-wasmedge --without-libxml --disable-dom --without-iconv --without-openssl --disable-simplexml --disable-xml --disable-xmlreader --disable-xmlwriter --without-pear --disable-phar --disable-opcache --disable-zend-signals --without-pcre-jit --with-sqlite3 --enable-pdo --with-pdo-sqlite'
+export PHP_CONFIGURE='--with-wasmedge --without-libxml --disable-dom --without-iconv --without-openssl --disable-simplexml --disable-xml --disable-xmlreader --disable-xmlwriter --without-pear --disable-phar --disable-opcache --disable-zend-signals --without-pcre-jit --without-sqlite3 --enable-pdo --with-pdo-mysql --disable-mysqlnd-compression-support'
 
-logStatus "Configuring build with '${PHP_CONFIGURE}'... "
+#logStatus "Configuring build with '${PHP_CONFIGURE}'... "
 ./configure --host=wasm32-wasi host_alias=wasm32-musl-wasi --target=wasm32-wasi target_alias=wasm32-musl-wasi ${PHP_CONFIGURE} || exit 1
 
 logStatus "Building php-cgi... "
