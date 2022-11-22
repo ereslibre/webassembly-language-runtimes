@@ -12,24 +12,24 @@ export CFLAGS_CONFIG="-O2"
 export CFLAGS_WASI="--sysroot=${WASI_SYSROOT} -D_WASI_EMULATED_GETPID -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS"
 export LDFLAGS_WASI="--sysroot=${WASI_SYSROOT} -lwasi-emulated-getpid -lwasi-emulated-signal -lwasi-emulated-process-clocks"
 
-export CFLAGS_SQLITE='-DSQLITE_OMIT_LOAD_EXTENSION=1'
-export LDFLAGS_SQLITE='-lsqlite3'
+export CFLAGS_SQLITE=''
+export LDFLAGS_SQLITE=''
 
 export CFLAGS_PHP='-D_POSIX_SOURCE=1 -D_GNU_SOURCE=1 -DHAVE_FORK=0 -DWASM_WASI'
 
 # We need to add LDFLAGS ot CFLAGS because autoconf compiles(+links) to binary when checking stuff
-export LDFLAGS="${LDFLAGS_WASI} ${LDFLAGS_DEPENDENCIES} ${LDFLAGS_SQLITE}"
-export CFLAGS="${CFLAGS_CONFIG} ${CFLAGS_WASI} ${CFLAGS_SQLITE} ${CFLAGS_DEPENDENCIES} ${CFLAGS_PHP} ${LDFLAGS}"
+export LDFLAGS="${LDFLAGS_WASI} ${LDFLAGS_DEPENDENCIES}"
+export CFLAGS="${CFLAGS_CONFIG} ${CFLAGS_WASI} ${CFLAGS_DEPENDENCIES} ${CFLAGS_PHP} ${LDFLAGS}"
 
 cd "${WASMLABS_CHECKOUT_PATH}"
 
-logStatus "Generating configure script... "
-./buildconf --force || exit 1
+#logStatus "Generating configure script... "
+#./buildconf || exit 1
 
-export PHP_CONFIGURE=' --without-libxml --disable-dom --without-iconv --without-openssl --disable-simplexml --disable-xml --disable-xmlreader --disable-xmlwriter --without-pear --disable-phar --disable-opcache --disable-zend-signals --without-pcre-jit --with-sqlite3 --enable-pdo --with-pdo-sqlite'
+#export PHP_CONFIGURE=' --without-libxml --disable-dom --without-iconv --without-openssl --disable-simplexml --disable-xml --disable-xmlreader --disable-xmlwriter --without-pear --disable-phar --disable-opcache --disable-zend-signals --without-pcre-jit --without-sqlite3 --enable-pdo --with-pdo-mysql --disable-mysqlnd-compression-support'
 
-logStatus "Configuring build with '${PHP_CONFIGURE}'... "
-./configure --host=wasm32-wasi host_alias=wasm32-musl-wasi --target=wasm32-wasi target_alias=wasm32-musl-wasi ${PHP_CONFIGURE} || exit 1
+#logStatus "Configuring build with '${PHP_CONFIGURE}'... "
+#./configure --host=wasm32-wasi host_alias=wasm32-musl-wasi --target=wasm32-wasi target_alias=wasm32-musl-wasi ${PHP_CONFIGURE} || exit 1
 
 logStatus "Building php-cgi... "
 make cgi || exit 1
