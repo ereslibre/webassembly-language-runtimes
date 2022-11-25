@@ -24,12 +24,12 @@ export CFLAGS="${CFS} ${CFLAGS_CONFIG} ${CFLAGS_WASI} ${CFLAGS_SQLITE} ${CFLAGS_
 cd "${WASMLABS_CHECKOUT_PATH}"
 
 #logStatus "Generating configure script... "
-./buildconf || exit 1
+#./buildconf || exit 1
 
 export PHP_CONFIGURE='--with-wasmedge --without-libxml --disable-dom --without-iconv --without-openssl --disable-simplexml --disable-xml --disable-xmlreader --disable-xmlwriter --without-pear --disable-phar --disable-opcache --disable-zend-signals --without-pcre-jit --without-sqlite3 --enable-pdo --with-pdo-mysql --disable-mysqlnd-compression-support'
 
 #logStatus "Configuring build with '${PHP_CONFIGURE}'... "
-./configure --host=wasm32-wasi host_alias=wasm32-musl-wasi --target=wasm32-wasi target_alias=wasm32-musl-wasi ${PHP_CONFIGURE} || exit 1
+#./configure --host=wasm32-wasi host_alias=wasm32-musl-wasi --target=wasm32-wasi target_alias=wasm32-musl-wasi ${PHP_CONFIGURE} || exit 1
 
 logStatus "Building php-cgi... "
 make cgi cli || exit 1
