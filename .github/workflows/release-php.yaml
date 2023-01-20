@@ -82,7 +82,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create --generate-notes ${{ github.ref_name }} || true
+          gh release create ${{ github.ref_name }} || true
       - name: Append PHP release assets
         # Only run for the PHP version specified in the git tag.
         #
