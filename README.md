@@ -146,6 +146,14 @@ This script accepts the path to be released, and will create a local tag of the 
 
 - `scripts/wl-tag.sh php/php-7.3.33`
 
-This will create a tag like the following in your local repository: `php/7.3.33+20221123-d3d8901`.
+This will create a tag like the following in your local repository: `php/7.3.33+20221123-d3d8901`. If you want to provide release notes for this release, you can do so by amending the tag message, writing the following block in it:
+
+```markdown
+```release-notes
+This is the release notes for the PHP 7.3.33 release of webassembly-language-runtimes.
+
+You can use **Markdown** to format your release notes, and this content will be placed on the release of PHP 7.3.33 on the webassembly-language-runtimes project in GitHub.
+```
+```
 
 When you push the tag to the remote repository, a GitHub release will be created automatically, and relevant artifacts will be automatically published to the release.
