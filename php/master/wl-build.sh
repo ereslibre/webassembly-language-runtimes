@@ -48,11 +48,9 @@ else
     logStatus "Skipping configure..."
 fi
 
-export MAKE_TARGETS='cgi'
-if [[ "${WASMLABS_RUNTIME}" == "wasmedge" ]]
-then
-    export MAKE_TARGETS="${MAKE_TARGETS} cli"
-fi
+
+# Build both `php-cgi` and the `php` CLI
+export MAKE_TARGETS='cgi cli'
 
 logStatus "Building '${MAKE_TARGETS}'..."
 # By exporting WASMLABS_SKIP_WASM_OPT envvar during the build, the

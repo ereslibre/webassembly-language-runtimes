@@ -1,0 +1,351 @@
+From a60173bc06c66fa980fa8684f9d8c2d97476dbda Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rafael=20Fern=C3=A1ndez=20L=C3=B3pez?=
+ <ereslibre@ereslibre.es>
+Date: Wed, 1 Feb 2023 17:42:41 +0100
+Subject: [PATCH 2/2] WIP: GH actions
+
+---
+ .github/actions/apt-wasi/action.yml       |  33 +++++
+ .github/actions/configure-wasi/action.yml |  34 ++++++
+ .github/actions/test-wasi/action.yml      |  39 ++++++
+ .github/workflows/push.yml                | 142 +---------------------
+ sapi/cli/php_cli_server.c                 |   6 +-
+ 5 files changed, 116 insertions(+), 138 deletions(-)
+ create mode 100644 .github/actions/apt-wasi/action.yml
+ create mode 100644 .github/actions/configure-wasi/action.yml
+ create mode 100644 .github/actions/test-wasi/action.yml
+
+diff --git a/.github/actions/apt-wasi/action.yml b/.github/actions/apt-wasi/action.yml
+new file mode 100644
+index 0000000000..d69e02c9f1
+--- /dev/null
++++ b/.github/actions/apt-wasi/action.yml
+@@ -0,0 +1,33 @@
++name: apt
++inputs:
++  wasi_sdk_version:
++    default: 19
++  wasmtime_version:
++    default: 5.0.0
++runs:
++  using: composite
++  steps:
++    - shell: bash
++      run: |
++        set -x
++
++        sudo apt-get update
++        sudo apt-get install \
++          # In order to execute tests in the CI environment, we install
++          # a PHP that this environment is able to run.
++          php
++    - shell: bash
++      run: |
++        set -x
++
++        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${{ inputs.wasi_sdk_version }}/wasi-sdk_${{ inputs.wasi_sdk_version }}.0_amd64.deb
++        sudo dpkg -i wasi-sdk_${{ inputs.wasi_sdk_version }}.0_amd64.deb
++    - shell: bash
++      run: |
++        set -x
++
++        mkdir -p /opt/bin
++
++        wget https://github.com/bytecodealliance/wasmtime/releases/download/v5.0.0/wasmtime-v${{ inputs.wasmtime_version }}-x86_64-linux.tar.xz
++        tar -xvf wasmtime-v${{ inputs.wasmtime_version }}-x86_64-linux.tar.xz
++        mv wasmtime-v${{ inputs.wasmtime_version }}-x86_64-linux/wasmtime /opt/bin/
+diff --git a/.github/actions/configure-wasi/action.yml b/.github/actions/configure-wasi/action.yml
+new file mode 100644
+index 0000000000..856f4edbef
+--- /dev/null
++++ b/.github/actions/configure-wasi/action.yml
+@@ -0,0 +1,34 @@
++name: ./configure
++inputs:
++  configurationParameters:
++    default: ''
++    required: false
++runs:
++  using: composite
++  steps:
++    - shell: bash
++      run: |
++        set -x
++        ./buildconf --force
++        ./configure \
++          --host=wasm32-wasi host_alias=wasm32-musl-wasi \
++          --target=wasm32-wasi target_alias=wasm32-musl-wasi \
++          --without-libxml \
++          --disable-dom \
++          --without-iconv \
++          --without-openssl \
++          --disable-simplexml \
++          --disable-xml \
++          --disable-xmlreader \
++          --disable-xmlwriter \
++          --without-pear \
++          --disable-phar \
++          --disable-opcache \
++          --disable-zend-signals \
++          --without-pcre-jit \
++          --without-sqlite3 \
++          --disable-pdo \
++          --disable-fiber-asm \
++          --disable-posix \
++          --disable-sockets \
++          ${{ inputs.configurationParameters }}
+diff --git a/.github/actions/test-wasi/action.yml b/.github/actions/test-wasi/action.yml
+new file mode 100644
+index 0000000000..5e1072267e
+--- /dev/null
++++ b/.github/actions/test-wasi/action.yml
+@@ -0,0 +1,39 @@
++name: Test
++inputs:
++  testArtifacts:
++    default: null
++    required: false
++  runTestsParameters:
++    default: ''
++    required: false
++runs:
++  using: composite
++  steps:
++    - shell: bash
++      run: |
++        cat <<-'EOF' > /opt/bin/run-tests.sh
++        	#!/bin/sh
++        	/opt/bin/wasmtime run --mapdir /::/ sapi/cli/php -- "$@"
++        EOF
++        chmod +x /opt/bin/run-tests.sh
++    - shell: bash
++      run: |
++        set -x
++        export SKIP_IO_CAPTURE_TESTS=1
++        export TEST_PHP_JUNIT=junit.out.xml
++        export STACK_LIMIT_DEFAULTS_CHECK=1
++        php run-tests.php -q ${{ inputs.runTestsParameters }} \
++          -p /opt/bin/run-tests.sh \
++          -j$(/usr/bin/nproc) \
++          -g FAIL,BORK,LEAK,XLEAK \
++          --no-progress \
++          --offline \
++          --show-diff \
++          --show-slow 1000 \
++          --set-timeout 120
++    - uses: actions/upload-artifact@v3
++      if: always() && inputs.testArtifacts != null
++      with:
++        name: ${{ github.job }}_${{ inputs.testArtifacts }}
++        path: ${{ github.workspace }}/junit.out.xml
++        retention-days: 5
+diff --git a/.github/workflows/push.yml b/.github/workflows/push.yml
+index 7e75abdcf9..30ba545820 100644
+--- a/.github/workflows/push.yml
++++ b/.github/workflows/push.yml
+@@ -15,166 +15,34 @@ on:
+       - PHP-8.1
+       - PHP-8.2
+       - master
++      - wasm32-wasi-wip
+   pull_request:
+     branches:
+       - '**'
+ permissions:
+   contents: read
+ jobs:
+-  LINUX_X64:
+-    strategy:
+-      fail-fast: false
+-      matrix:
+-        include:
+-          - debug: true
+-            zts: false
+-          - debug: false
+-            zts: true
+-    name: "LINUX_X64_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}"
+-    runs-on: ubuntu-20.04
+-    steps:
+-      - name: git checkout
+-        uses: actions/checkout@v3
+-      - name: Create MSSQL container
+-        uses: ./.github/actions/setup-mssql
+-      - name: Create Oracle container
+-        uses: ./.github/actions/setup-oracle
+-      - name: apt
+-        uses: ./.github/actions/apt-x64
+-      - name: ./configure
+-        uses: ./.github/actions/configure-x64
+-        with:
+-          configurationParameters: >-
+-            --${{ matrix.debug && 'enable' || 'disable' }}-debug
+-            --${{ matrix.zts && 'enable' || 'disable' }}-zts
+-      - name: make
+-        run: make -j$(/usr/bin/nproc) >/dev/null
+-      - name: make install
+-        uses: ./.github/actions/install-linux
+-      - name: Setup
+-        uses: ./.github/actions/setup-x64
+-      - name: Test
+-        uses: ./.github/actions/test-linux
+-        with:
+-          testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}
+-      - name: Test Tracing JIT
+-        uses: ./.github/actions/test-linux
+-        with:
+-          testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }} Tracing JIT
+-          runTestsParameters: >-
+-            -d zend_extension=opcache.so
+-            -d opcache.enable_cli=1
+-            -d opcache.jit_buffer_size=16M
+-      - name: Verify generated files are up to date
+-        uses: ./.github/actions/verify-generated-files
+-  LINUX_X32:
+-    name: LINUX_X32_DEBUG_ZTS
+-    runs-on: ubuntu-latest
+-    container:
+-      image: ubuntu:20.04
+-    env:
+-      MYSQL_TEST_HOST: mysql
+-      PDO_MYSQL_TEST_DSN: mysql:host=mysql;dbname=test
+-      PDO_MYSQL_TEST_HOST: mysql
+-    services:
+-      mysql:
+-        image: mysql:8
+-        ports:
+-          - 3306:3306
+-        env:
+-          MYSQL_DATABASE: test
+-          MYSQL_ROOT_PASSWORD: root
+-    steps:
+-      - name: git checkout
+-        uses: actions/checkout@v3
+-      - name: apt
+-        uses: ./.github/actions/apt-x32
+-      - name: ./configure
+-        uses: ./.github/actions/configure-x32
+-        with:
+-          configurationParameters: >-
+-            --enable-debug
+-            --enable-zts
+-      - name: make
+-        run: make -j$(/usr/bin/nproc) >/dev/null
+-      - name: make install
+-        uses: ./.github/actions/install-linux-x32
+-      - name: Test
+-        uses: ./.github/actions/test-linux
+-      - name: Test Tracing JIT
+-        uses: ./.github/actions/test-linux
+-        with:
+-          runTestsParameters: >-
+-            -d zend_extension=opcache.so
+-            -d opcache.enable_cli=1
+-            -d opcache.jit_buffer_size=16M
+-  MACOS_DEBUG_NTS:
+-    runs-on: macos-11
+-    steps:
+-      - name: git checkout
+-        uses: actions/checkout@v3
+-      - name: brew
+-        uses: ./.github/actions/brew
+-      - name: ./configure
+-        uses: ./.github/actions/configure-macos
+-        with:
+-          configurationParameters: --enable-debug --disable-zts
+-      - name: make
+-        run: |-
+-          export PATH="/usr/local/opt/bison/bin:$PATH"
+-          make -j$(sysctl -n hw.logicalcpu) >/dev/null
+-      - name: make install
+-        run: sudo make install
+-      - name: Test
+-        uses: ./.github/actions/test-macos
+-        with:
+-          testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}
+-      - name: Test Tracing JIT
+-        uses: ./.github/actions/test-macos
+-        with:
+-          testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }} Tracing JIT
+-          runTestsParameters: >-
+-            -d zend_extension=opcache.so
+-            -d opcache.enable_cli=1
+-            -d opcache.protect_memory=1
+-            -d opcache.jit_buffer_size=16M
+-      - name: Verify generated files are up to date
+-        uses: ./.github/actions/verify-generated-files
+   WASM_WASI:
+     name: "WASM_WASI_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}"
+     runs-on: ubuntu-20.04
+     steps:
+       - name: git checkout
+         uses: actions/checkout@v3
+-      - name: Create MSSQL container
+-        uses: ./.github/actions/setup-mssql
+-      - name: Create Oracle container
+-        uses: ./.github/actions/setup-oracle
+       - name: apt
+         uses: ./.github/actions/apt-x64
++      - name: apt
++        uses: ./.github/actions/apt-wasi
+       - name: ./configure
+-        uses: ./.github/actions/configure-x64
++        uses: ./.github/actions/configure-wasi
+         with:
+           configurationParameters: >-
+             --${{ matrix.debug && 'enable' || 'disable' }}-debug
+             --${{ matrix.zts && 'enable' || 'disable' }}-zts
+       - name: make
+         run: make -j$(/usr/bin/nproc) >/dev/null
+-      - name: make install
+-        uses: ./.github/actions/install-linux
+-      - name: Setup
+-        uses: ./.github/actions/setup-x64
+       - name: Test
+-        uses: ./.github/actions/test-linux
++        uses: ./.github/actions/test-wasi
+         with:
+           testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}
+-      - name: Test Tracing JIT
+-        uses: ./.github/actions/test-linux
+-        with:
+-          testArtifacts: ${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }} Tracing JIT
+-          runTestsParameters: >-
+-            -d zend_extension=opcache.so
+-            -d opcache.enable_cli=1
+-            -d opcache.jit_buffer_size=16M
+       - name: Verify generated files are up to date
+         uses: ./.github/actions/verify-generated-files
+diff --git a/sapi/cli/php_cli_server.c b/sapi/cli/php_cli_server.c
+index 901281ddfd..9bf100a544 100644
+--- a/sapi/cli/php_cli_server.c
++++ b/sapi/cli/php_cli_server.c
+@@ -768,7 +768,7 @@ static void sapi_cli_server_log_write(int type, const char *msg) /* {{{ */
+ 			memmove(buf, "unknown", sizeof("unknown"));
+ 		}
+ 	}
+-#ifdef HAVE_FORK
++#if defined(HAVE_FORK) && !defined(__wasi__)
+ 	if (php_cli_server_workers_max > 1) {
+ 		fprintf(stderr, "[%ld] [%s] %s\n", (long) getpid(), buf, msg);
+ 	} else {
+@@ -1267,6 +1267,9 @@ static void php_cli_server_logf(int type, const char *format, ...) /* {{{ */
+ 
+ static php_socket_t php_network_listen_socket(const char *host, int *port, int socktype, int *af, socklen_t *socklen, zend_string **errstr) /* {{{ */
+ {
++#ifdef __wasi__
++  return -1;
++#else
+ 	php_socket_t retval = SOCK_ERR;
+ 	int err = 0;
+ 	struct sockaddr *sa = NULL, **p, **sal;
+@@ -1373,6 +1376,7 @@ static php_socket_t php_network_listen_socket(const char *host, int *port, int s
+ 		return SOCK_ERR;
+ 	}
+ 	return retval;
++#endif
+ } /* }}} */
+ 
+ static void php_cli_server_request_ctor(php_cli_server_request *req) /* {{{ */
+-- 
+2.38.3
+
