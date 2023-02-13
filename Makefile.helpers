@@ -16,7 +16,8 @@ define make_builder_image
     $(eval $@_ROOT_DIR = $(2))
     $(eval $@_WASI_SDK_VERSION = $(3))
 	@echo Building $($@_IMAGE_NAME) in $($@_ROOT_DIR) ... && \
-	docker build \
+	podman build \
+    --pull=never \
 		--platform linux/amd64 \
 		-f $($@_ROOT_DIR)/Dockerfile \
 		--build-arg WASI_SDK_VERSION=$($@_WASI_SDK_VERSION) \
@@ -29,7 +30,8 @@ define build_in_container
     $(eval $@_IMAGE_NAME = $(1))
     $(eval $@_REPO_ROOT = $(2))
     $(eval $@_WL_MAKE_TARGET = $(3))
-	docker run \
+	podman run \
+    --pull=never \
 		--platform linux/amd64 \
 		--rm \
 		-e WASMLABS_RUNTIME \

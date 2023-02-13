@@ -7,6 +7,7 @@ WASM_BASE_NAME := ghcr.io/vmware-labs/wasmlabs/wasm-base:latest
 wasm-base:
 	@echo Building $(WASM_BASE_NAME) in $(BUILDER_ROOT_DIR) ... && \
 	docker build \
+    --pull=never \
 		--platform linux/amd64 \
 		--build-arg BINARYEN_VERSION=111 \
 		-f $(BUILDER_ROOT_DIR)/Dockerfile.wasm-base \
@@ -22,6 +23,7 @@ WASI_BUILDER_19_NAME := ghcr.io/vmware-labs/wasmlabs/wasi-builder:19
 wasi-builder-19:
 	@echo Building $(WASI_BUILDER_19_NAME) in $(BUILDER_ROOT_DIR) ... && \
 	docker build \
+    --pull=never \
 		--platform linux/amd64 \
 		--build-arg WASI_SDK_VERSION=19 \
 		-f $(BUILDER_ROOT_DIR)/Dockerfile.wasi-builder \
@@ -37,6 +39,7 @@ WASI_BUILDER_16_NAME := ghcr.io/vmware-labs/wasmlabs/wasi-builder:16
 wasi-builder-16:
 	@echo Building $(WASI_BUILDER_16_NAME) in $(BUILDER_ROOT_DIR) ... && \
 	docker build \
+    --pull=never \
 		--platform linux/amd64 \
 		--build-arg WASI_SDK_VERSION=16 \
 		-f $(BUILDER_ROOT_DIR)/Dockerfile.wasi-builder \
@@ -46,4 +49,3 @@ wasi-builder-16:
 .PHONY: push-wasi-builder-16
 push-wasi-builder-16:
 	@$(call push_container_image,$(WASI_BUILDER_16_NAME))
-

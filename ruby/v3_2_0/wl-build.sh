@@ -10,6 +10,8 @@ cd "${WASMLABS_SOURCE_PATH}"
 
 mkdir -p build
 
+export XLDFLAGS="/wasi-vfs/lib/libwasi_vfs.a $XLDFLAGS"
+
 if [[ -z "$WASMLABS_SKIP_CONFIGURE" ]]; then
     logStatus "Downloading autotools data... "
     ruby tool/downloader.rb -d tool -e gnu config.guess config.sub
@@ -38,5 +40,6 @@ make ruby
 
 logStatus "Preparing artifacts... "
 mv ruby ${WASMLABS_OUTPUT}/bin/ruby.wasm || exit 1
+wasi-vfs pack ${WASMLABS_OUTPUT}/bin/ruby.wasm --mapdir /usr/local/lib/ruby/3.2.0/wasm32-wasi/::${WASMLABS_SOURCE_PATH}/lib -o ${WASMLABS_OUTPUT}/bin/ruby-full.wasm || exit 1
 
 logStatus "DONE. Artifacts in ${WASMLABS_OUTPUT}"
